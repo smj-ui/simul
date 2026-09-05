@@ -1,7 +1,199 @@
-<h1>llm</h1>
-<ul>
-  <li><a href="./step1/">step1-token</a></li>
-  <li><a href="./step2/">step2-attention</a></li>
-  <li><a href="./step3/">step3-hallucination</a></li>
-</ul>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="고등학생을 위한 LLM 원리 3단계 수업 웹페이지">
+  <title>LLM 원리 탐구 수업</title>
+  <style>
+    :root {
+      --navy:#0b1f3a; --navy2:#112d50; --cyan:#16c7c9; --cyan2:#0ea5a8;
+      --blue:#eaf8fa; --ink:#16263d; --muted:#607086; --line:#d8e4ec;
+      --paper:#fff; --bg:#f3f7fa; --ok:#168766; --warm:#ffb84d;
+      --shadow:0 12px 30px rgba(10,31,58,.10); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55}
+    button,a{font:inherit}
+    button{cursor:pointer}
+    .skip{position:absolute;left:-9999px;top:8px;background:#fff;padding:10px 14px;z-index:100}
+    .skip:focus{left:8px}
+    .topbar{position:sticky;top:0;z-index:30;background:rgba(11,31,58,.97);color:#fff;border-bottom:3px solid var(--cyan)}
+    .top-inner{max-width:1500px;margin:auto;min-height:66px;padding:10px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--cyan);color:var(--navy);font-weight:900}
+    .brand strong{display:block;font-size:1.05rem}.brand span{display:block;color:#bcd1df;font-size:.82rem}
+    .progress-area{display:flex;align-items:center;gap:10px;min-width:260px}
+    .progress-track{height:8px;flex:1;background:#29445f;border-radius:999px;overflow:hidden}
+    .progress-fill{height:100%;width:0;background:var(--cyan);transition:width .25s ease}
+    #progressText{font-size:.85rem;white-space:nowrap}
+    .shell{max-width:1500px;margin:0 auto;padding:22px;display:grid;grid-template-columns:310px minmax(0,1fr);gap:20px}
+    .sidebar{align-self:start;position:sticky;top:88px;display:flex;flex-direction:column;gap:14px}
+    .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .course-intro{padding:20px}
+    .eyebrow{margin:0 0 7px;color:var(--cyan2);font-size:.8rem;font-weight:900;letter-spacing:.08em}
+    h1{font-size:1.48rem;line-height:1.28;margin:0 0 8px;color:var(--navy)}
+    .course-intro>p:not(.eyebrow){font-size:.91rem;color:var(--muted);margin:0}
+    .time-note{display:flex;gap:8px;align-items:flex-start;margin-top:15px;padding:11px;border-radius:12px;background:#fff7e8;color:#78531f;font-size:.84rem}
+    .step-list{padding:8px}
+    .step-button{width:100%;border:0;background:transparent;text-align:left;border-radius:14px;padding:14px;display:grid;grid-template-columns:38px 1fr auto;gap:11px;align-items:start;color:var(--ink)}
+    .step-button:hover{background:#f2f8fb}.step-button.active{background:var(--blue);box-shadow:inset 0 0 0 2px var(--cyan)}
+    .step-num{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--navy);color:#fff;font-weight:900}
+    .step-button.active .step-num{background:var(--cyan);color:var(--navy)}
+    .step-copy strong{display:block;font-size:.95rem}.step-copy span{display:block;font-size:.79rem;color:var(--muted);margin-top:2px}
+    .check{width:24px;height:24px;border:2px solid #a9bac7;border-radius:50%;display:grid;place-items:center;color:transparent;font-weight:900;margin-top:4px}
+    .step-button.done .check{background:var(--ok);border-color:var(--ok);color:white}
+    .teacher-note{padding:16px 18px}.teacher-note strong{color:var(--navy);font-size:.9rem}.teacher-note p{margin:5px 0 0;color:var(--muted);font-size:.82rem}
+    main{min-width:0;display:flex;flex-direction:column;gap:14px}
+    .lesson-head{padding:20px 22px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+    .lesson-label{font-size:.82rem;color:var(--cyan2);font-weight:900;margin:0 0 4px}
+    h2{font-size:1.38rem;line-height:1.3;color:var(--navy);margin:0 0 6px}
+    .lesson-summary{margin:0;color:var(--muted)}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .pill{border:1px solid var(--line);border-radius:999px;padding:7px 11px;background:#f7fafc;color:#405168;font-size:.82rem;font-weight:700;white-space:nowrap}
+    .guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .guide-card{padding:16px 18px;box-shadow:none}
+    .guide-card h3{font-size:.88rem;margin:0 0 6px;color:var(--cyan2)}
+    .guide-card p{font-size:.92rem;margin:0;color:#33465c}
+    .sim-wrap{overflow:hidden;min-height:680px;position:relative}
+    .sim-toolbar{padding:10px 14px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .sim-toolbar span{font-size:.85rem;color:#c8d9e6}
+    .open-link{color:#fff;text-decoration:none;border:1px solid #58718a;border-radius:9px;padding:7px 10px;font-size:.82rem;font-weight:bold}
+    .open-link:hover,.open-link:focus{border-color:var(--cyan);background:var(--cyan2);outline:none}
+    iframe{display:block;width:100%;height:720px;border:0;background:#fff}
+    .lesson-actions{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:14px 16px}
+    .nav-btn,.complete-btn{border-radius:11px;border:1px solid var(--line);padding:11px 15px;font-weight:800;background:#fff;color:var(--navy)}
+    .nav-btn:hover{border-color:var(--cyan2)}.nav-btn:disabled{opacity:.38;cursor:not-allowed}
+    .complete-btn{background:var(--cyan);border-color:var(--cyan);color:var(--navy)}
+    .complete-btn.is-done{background:var(--ok);border-color:var(--ok);color:#fff}
+    .reflection{padding:17px 20px;background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff}
+    .reflection h3{margin:0 0 5px;font-size:1rem}.reflection p{margin:0;color:#d7e4ee;font-size:.9rem}
+    .course-complete{display:none;padding:20px;text-align:center;border:2px solid var(--cyan)}
+    .course-complete.show{display:block}.course-complete h3{margin:0;color:var(--navy)}.course-complete p{margin:6px 0 0;color:var(--muted)}
+    footer{max-width:1500px;margin:0 auto;padding:4px 22px 28px;color:#6c7d8f;font-size:.8rem}
+    :focus-visible{outline:3px solid #ffca65;outline-offset:3px}
+    @media(max-width:980px){.shell{grid-template-columns:1fr}.sidebar{position:static}.step-list{display:grid;grid-template-columns:repeat(3,1fr)}.step-button{grid-template-columns:34px 1fr}.check{display:none}.teacher-note{display:none}.sim-wrap{min-height:600px}iframe{height:650px}}
+    @media(max-width:680px){.top-inner{padding:9px 14px}.brand span{display:none}.progress-area{min-width:150px}.shell{padding:12px}.course-intro{padding:16px}.step-list{grid-template-columns:1fr}.step-button{grid-template-columns:34px 1fr auto}.check{display:grid}.lesson-head{grid-template-columns:1fr;padding:17px}.meta{justify-content:flex-start}.guide-grid{grid-template-columns:1fr}.sim-toolbar span{display:none}iframe{height:680px}.lesson-actions{grid-template-columns:1fr 1fr}.complete-btn{grid-column:1/-1;grid-row:1}.lesson-actions>span{display:none}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#lesson">수업 활동으로 바로 가기</a>
+  <header class="topbar">
+    <div class="top-inner">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">AI</div><div><strong>LLM 원리 탐구실</strong><span>세 번의 실험으로 이해하는 언어 모델</span></div></div>
+      <div class="progress-area" aria-label="전체 수업 진행률"><div class="progress-track"><div class="progress-fill" id="progressFill"></div></div><span id="progressText">0 / 3 완료</span></div>
+    </div>
+  </header>
 
+  <div class="shell">
+    <aside class="sidebar" aria-label="수업 순서">
+      <section class="panel course-intro">
+        <p class="eyebrow">HIGH SCHOOL · AI BASICS</p>
+        <h1>LLM은 어떻게 만들고, 보고, 틀릴까?</h1>
+        <p>문장 생성의 출발점부터 문맥 처리와 사실 검증까지 순서대로 탐구합니다.</p>
+        <div class="time-note"><span aria-hidden="true">⏱</span><span><strong>권장 50분</strong><br>도입 5분 · 활동별 12분 · 정리 9분<br><small>학급 상황에 따라 조정하는 예시입니다.</small></span></div>
+      </section>
+      <nav class="panel step-list" id="stepList" aria-label="세부 활동"></nav>
+      <section class="panel teacher-note">
+        <strong>수업 운영 팁</strong>
+        <p>학생에게 먼저 결과를 예상하게 한 뒤 조건을 바꿔 재실험하도록 안내하세요. 정답보다 변화의 이유를 설명하는 과정이 중요합니다.</p>
+      </section>
+    </aside>
+
+    <main id="lesson">
+      <section class="panel lesson-head" aria-live="polite">
+        <div><p class="lesson-label" id="lessonLabel"></p><h2 id="lessonTitle"></h2><p class="lesson-summary" id="lessonSummary"></p></div>
+        <div class="meta"><span class="pill" id="lessonTime"></span><span class="pill" id="lessonConcept"></span></div>
+      </section>
+
+      <div class="guide-grid">
+        <section class="panel guide-card"><h3>학습 목표</h3><p id="lessonGoal"></p></section>
+        <section class="panel guide-card"><h3>탐구 질문</h3><p id="lessonQuestion"></p></section>
+      </div>
+
+      <section class="panel sim-wrap" aria-label="시뮬레이션 실행 영역">
+        <div class="sim-toolbar"><strong id="simTitle">시뮬레이션</strong><span>아래 화면에서 직접 조건을 바꾸어 실험하세요.</span><a class="open-link" id="openLink" href="#" target="_blank" rel="noopener">전체 화면 / 새 창에서 열기 ↗</a></div>
+        <iframe id="simFrame" title="LLM 수업 시뮬레이션"></iframe>
+      </section>
+
+      <section class="panel reflection"><h3>활동을 마치기 전 한 문장</h3><p id="reflectionPrompt"></p></section>
+      <section class="panel lesson-actions">
+        <button class="nav-btn" id="prevBtn" type="button">← 이전 활동</button><span></span>
+        <button class="nav-btn" id="nextBtn" type="button">다음 활동 →</button>
+        <button class="complete-btn" id="completeBtn" type="button">이 활동 완료하기</button>
+      </section>
+      <section class="panel course-complete" id="courseComplete" aria-live="polite"><h3>세 가지 탐구 활동을 모두 완료했습니다.</h3><p>LLM은 확률로 문장을 생성하고, 문맥의 단어를 선택적으로 참고하며, 자연스러운 답도 근거와 비교해 확인해야 합니다.</p></section>
+    </main>
+  </div>
+  <footer>이 수업의 수치와 출력은 원리 이해를 위한 모의 데이터입니다. 실제 모델의 성능·판단 과정·환각 발생률을 나타내지 않으며, 실제 사실은 신뢰할 수 있는 최신 자료로 확인해야 합니다.</footer>
+
+  <script>
+    // GitHub 링크 경로로 수정된 lessons 배열 (폴더 방식 ./step1/ 기준)
+    // 만약 파일 개별 방식이라면 './step1/' 대신 'step1.html' 로 수정해주시면 됩니다.
+    const lessons = [
+      {title:'다음 토큰 예측', short:'문장은 어떻게 이어질까?', time:'권장 12분', concept:'확률 · Temperature', path:'./step1/',
+       summary:'현재까지의 토큰을 바탕으로 다음 토큰 후보의 확률을 계산하고 하나씩 문장을 만들어 봅니다.',
+       goal:'LLM이 다음 토큰을 반복해서 예측하며 문장을 생성하고, Temperature가 선택의 다양성에 영향을 준다는 점을 설명할 수 있다.',
+       question:'Temperature를 낮추거나 높였을 때 결과의 다양성은 어떻게 달라지는가?', reflection:'“같은 문장으로 시작해도 결과가 달라질 수 있는 이유는 ______ 때문이다.”'},
+      {title:'문맥과 Attention', short:'모델은 어디를 참고할까?', time:'권장 12분', concept:'문맥 · 가중치', path:'./step2/',
+       summary:'문장의 각 토큰에 주어지는 Attention 가중치를 바꾸며 다음 토큰 예측이 어떻게 달라지는지 살펴봅니다.',
+       goal:'LLM이 문맥의 모든 토큰을 똑같이 참고하지 않고, 예측에 필요한 관계에 서로 다른 가중치를 줄 수 있음을 설명할 수 있다.',
+       question:'기준 토큰이나 집중 대상을 바꾸면 다음 토큰 후보의 순위는 왜 달라지는가?', reflection:'“Attention은 문맥에서 ______을 더 크게 참고하도록 돕는다.”'},
+      {title:'환각과 사실 검증', short:'자연스러우면 사실일까?', time:'권장 12분', concept:'근거 · 불확실성', path:'./step3/',
+       summary:'제공되는 문맥과 답변 정책을 바꾸며 자연스러운 답변이 언제 사실과 어긋날 수 있는지 검증합니다.',
+       goal:'유창한 문장과 사실에 근거한 문장을 구분하고, 답변을 신뢰하기 전에 근거와 교차 확인해야 하는 이유를 설명할 수 있다.',
+       question:'정보가 부족할 때 무조건 답하는 정책과 답변을 보류하는 정책은 어떤 차이를 만드는가?', reflection:'“LLM의 답변을 믿기 전에 ______과 비교해야 한다.”'}
+    ];
+    const storageKey='llm-course-progress-v1';
+    let current=0;
+    let completed=new Set();
+    try{completed=new Set(JSON.parse(localStorage.getItem(storageKey)||'[]'))}catch(e){completed=new Set()}
+    const $=id=>document.getElementById(id);
+
+    function save(){try{localStorage.setItem(storageKey,JSON.stringify([...completed]))}catch(e){}}
+    function renderNav(){
+      $('stepList').innerHTML=lessons.map((l,i)=>`<button type="button" class="step-button ${i===current?'active':''} ${completed.has(i)?'done':''}" data-step="${i}" aria-current="${i===current?'step':'false'}"><span class="step-num">${i+1}</span><span class="step-copy"><strong>${l.title}</strong><span>${l.short}</span></span><span class="check" aria-label="${completed.has(i)?'완료':'미완료'}">✓</span></button>`).join('');
+      document.querySelectorAll('.step-button').forEach(btn=>btn.addEventListener('click',()=>selectLesson(Number(btn.dataset.step))));
+    }
+    function updateProgress(){
+      const count=completed.size;
+      $('progressFill').style.width=`${count/lessons.length*100}%`;
+      $('progressText').textContent=`${count} / ${lessons.length} 완료`;
+      $('courseComplete').classList.toggle('show',count===lessons.length);
+    }
+    function selectLesson(index){
+      current=Math.max(0,Math.min(lessons.length-1,index));
+      const l=lessons[current];
+      $('lessonLabel').textContent=`ACTIVITY ${current+1} · 3`;
+      $('lessonTitle').textContent=l.title;
+      $('lessonSummary').textContent=l.summary;
+      $('lessonTime').textContent=l.time;
+      $('lessonConcept').textContent=l.concept;
+      $('lessonGoal').textContent=l.goal;
+      $('lessonQuestion').textContent=l.question;
+      $('reflectionPrompt').textContent=l.reflection;
+      $('simTitle').textContent=l.title+' 시뮬레이션';
+      $('simFrame').src=l.path;
+      $('simFrame').title=l.title+' 시뮬레이션';
+      $('openLink').href=l.path;
+      $('prevBtn').disabled=current===0;
+      $('nextBtn').disabled=current===lessons.length-1;
+      $('completeBtn').textContent=completed.has(current)?'✓ 완료됨 · 다시 표시 해제':'이 활동 완료하기';
+      $('completeBtn').classList.toggle('is-done',completed.has(current));
+      renderNav(); updateProgress();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    $('prevBtn').addEventListener('click',()=>selectLesson(current-1));
+    $('nextBtn').addEventListener('click',()=>selectLesson(current+1));
+    $('completeBtn').addEventListener('click',()=>{
+      if(completed.has(current)){completed.delete(current)}else{completed.add(current)}
+      save(); renderNav(); updateProgress();
+      $('completeBtn').textContent=completed.has(current)?'✓ 완료됨 · 다시 표시 해제':'이 활동 완료하기';
+      $('completeBtn').classList.toggle('is-done',completed.has(current));
+      if(completed.has(current)&&current<lessons.length-1)setTimeout(()=>selectLesson(current+1),350);
+    });
+    selectLesson(0);
+  </script>
+</body>
+</html>
