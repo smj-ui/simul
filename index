@@ -1,4 +1,4 @@
-<h1>파이썬 실습 모음</h1>
+<h1>llm</h1>
 <ul>
   <li><a href="./step1/">step1-token</a></li>
   <li><a href="./step2/">step2-attention</a></li>
