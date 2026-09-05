@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="고등학생을 위한 LLM 환각과 사실 검증 시뮬레이션">
+  <title>LLM 환각과 사실 검증 시뮬레이션</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #647089;
+      --line: #d9dfeb;
+      --soft: #f3f6fb;
+      --navy: #183b65;
+      --blue: #2f6fc2;
+      --cyan: #53c6d9;
+      --orange: #f08b45;
+      --green: #27856d;
+      --red: #c95349;
+      --shadow: 0 18px 48px rgba(23, 32, 51, .10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(83, 198, 217, .13), transparent 28rem),
+        linear-gradient(180deg, #eef3f9 0, #f8fafc 24rem, #eef3f9 100%);
+      font-family: Pretendard, "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    button, select { font: inherit; }
+    button { touch-action: manipulation; }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 52px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -.02em; }
+    .brand-mark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; color: #fff; background: var(--navy); box-shadow: 0 8px 22px rgba(24, 59, 101, .25); }
+    .status-pill { padding: 6px 11px; border: 1px solid #cdd7e6; border-radius: 999px; color: #43516a; background: rgba(255,255,255,.72); font-size: .82rem; font-weight: 700; }
+
+    .intro {
+      display: grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 24px;
+      align-items: end;
+      position: relative;
+      margin-bottom: 18px;
+      padding: 26px 30px;
+      overflow: hidden;
+      border-radius: 24px;
+      color: #fff;
+      background: var(--navy);
+      box-shadow: var(--shadow);
+    }
+
+    .intro::after { content: ""; position: absolute; width: 240px; height: 240px; right: -70px; top: -100px; border: 42px solid rgba(83,198,217,.24); border-radius: 50%; }
+    .eyebrow { margin: 0 0 5px; color: #9ee5ef; font-size: .85rem; font-weight: 800; letter-spacing: .08em; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(1.75rem, 4vw, 3rem); line-height: 1.18; letter-spacing: -.045em; }
+    .intro p:last-child { position: relative; z-index: 1; margin: 0; color: #dbe9f8; font-size: .98rem; }
+
+    .flow { display: flex; gap: 8px; align-items: center; margin: 0 0 18px; padding: 12px 16px; overflow-x: auto; border: 1px solid #d7e0ec; border-radius: 14px; color: #43516a; background: rgba(255,255,255,.78); white-space: nowrap; scrollbar-width: thin; font-size: .9rem; font-weight: 700; }
+    .flow strong { color: var(--navy); }
+    .flow .arrow { color: #94a1b6; }
+    .workspace { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .card { border: 1px solid rgba(205,215,230,.9); border-radius: var(--radius); background: rgba(255,255,255,.95); box-shadow: 0 10px 30px rgba(23,32,51,.06); }
+    .controls { position: sticky; top: 18px; padding: 22px; }
+    .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 18px; font-size: 1.05rem; line-height: 1.3; }
+    .step { display: inline-grid; width: 28px; height: 28px; place-items: center; border-radius: 9px; color: #fff; background: var(--blue); font-size: .82rem; }
+    .field { margin-top: 17px; }
+    label, .field-label { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: #37445b; font-size: .9rem; font-weight: 800; }
+    .hint { color: var(--muted); font-size: .78rem; font-weight: 500; }
+
+    select { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #cfd8e6; border-radius: 11px; outline: none; color: var(--ink); background: #fff; }
+    select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47,111,194,.13); }
+    .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 4px; border: 1px solid #d7dfeb; border-radius: 12px; background: var(--soft); }
+    .segmented.two { grid-template-columns: 1fr 1fr; }
+    .segmented button { min-height: 40px; padding: 5px 7px; border: 0; border-radius: 9px; color: #5a667b; background: transparent; cursor: pointer; font-size: .82rem; font-weight: 800; }
+    .segmented button.active { color: #fff; background: var(--navy); box-shadow: 0 5px 14px rgba(24,59,101,.18); }
+    .button-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 22px; }
+    .button-stack .primary { grid-column: 1 / -1; }
+    .btn { min-height: 45px; border: 1px solid #cbd5e3; border-radius: 11px; color: #314057; background: #fff; cursor: pointer; font-weight: 800; transition: transform .16s ease, box-shadow .16s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:focus-visible, .segmented button:focus-visible, .judge-button:focus-visible { outline: 3px solid rgba(83,198,217,.58); outline-offset: 2px; }
+    .btn.primary { border-color: var(--blue); color: #fff; background: var(--blue); box-shadow: 0 8px 18px rgba(47,111,194,.22); }
+    .model-note { margin: 18px 0 0; padding-top: 15px; border-top: 1px solid #e0e5ee; color: var(--muted); font-size: .8rem; line-height: 1.55; }
+
+    .main-panel { min-width: 0; }
+    .question-card, .answer-card, .evidence-card { padding: 24px; }
+    .answer-card, .evidence-card { margin-top: 18px; }
+    .question-label { margin: 0 0 7px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .08em; }
+    .question-text { margin: 0; font-size: clamp(1.15rem, 2.3vw, 1.52rem); font-weight: 800; line-height: 1.55; letter-spacing: -.02em; }
+    .context-box { min-height: 96px; margin-top: 16px; padding: 15px 17px; border: 1px solid #d8e1ee; border-radius: 13px; color: #344259; background: #f8fafd; }
+    .context-box.empty-context { display: grid; place-items: center; border-style: dashed; color: #8792a4; text-align: center; }
+    .context-heading { display: block; margin-bottom: 4px; color: var(--muted); font-size: .76rem; font-weight: 800; }
+
+    .answer-box { min-height: 104px; padding: 17px 18px; border: 1px solid #d8e1ee; border-radius: 14px; background: #f9fbfe; font-size: 1.05rem; font-weight: 700; line-height: 1.75; }
+    .answer-box.placeholder { display: grid; place-items: center; color: #8490a3; text-align: center; font-weight: 600; }
+    .result-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; color: #fff; background: #718096; font-size: .76rem; font-weight: 900; }
+    .result-badge.supported { background: var(--green); }
+    .result-badge.insufficient, .result-badge.abstain { background: var(--orange); }
+    .result-badge.conflict { background: var(--red); }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 17px; }
+    .metric { padding: 12px 14px; border-radius: 12px; background: var(--soft); }
+    .metric-line { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: #4b5870; font-size: .82rem; font-weight: 800; }
+    .rail { height: 10px; overflow: hidden; border-radius: 99px; background: #dde5f0; }
+    .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan)); transition: width .35s ease; }
+    .fill.evidence { background: linear-gradient(90deg, var(--orange), var(--green)); }
+
+    .reference-box { padding: 13px 15px; border-left: 4px solid var(--blue); border-radius: 5px 11px 11px 5px; color: #35435a; background: #f2f6fb; }
+    .reference-box b { display: block; margin-bottom: 3px; color: var(--navy); }
+    .claim-list { display: grid; gap: 8px; margin-top: 14px; }
+    .claim { display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: start; padding: 10px 12px; border-radius: 10px; background: var(--soft); font-size: .86rem; }
+    .claim-tag { min-width: 74px; padding: 2px 7px; border-radius: 7px; color: #fff; text-align: center; font-size: .72rem; font-weight: 900; }
+    .claim-tag.supported { background: var(--green); }
+    .claim-tag.insufficient, .claim-tag.abstain { background: var(--orange); }
+    .claim-tag.conflict { background: var(--red); }
+    .empty { margin: 0; padding: 16px 0; color: var(--muted); text-align: center; font-size: .88rem; }
+
+    .judge-area { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e0e5ee; }
+    .judge-title { margin: 0 0 9px; font-size: .9rem; font-weight: 900; }
+    .judge-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .judge-button { min-height: 42px; padding: 7px; border: 1px solid #cbd5e3; border-radius: 10px; color: #455168; background: #fff; cursor: pointer; font-size: .82rem; font-weight: 800; }
+    .judge-button:hover { border-color: var(--blue); color: var(--blue); }
+    .feedback { min-height: 32px; margin: 9px 0 0; color: var(--muted); font-size: .84rem; font-weight: 700; }
+    .feedback.correct { color: var(--green); }
+    .feedback.wrong { color: var(--red); }
+
+    .lower-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; margin-top: 18px; }
+    .compare-card, .history-card { padding: 22px; }
+    .compare-copy { margin: -5px 0 13px; color: var(--muted); font-size: .86rem; }
+    .compare-results { display: grid; gap: 8px; }
+    .compare-row { display: grid; grid-template-columns: 55px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px; border-radius: 10px; background: var(--soft); font-size: .82rem; }
+    .compare-level { color: var(--navy); font-weight: 900; }
+    .compare-result { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .compare-prob { color: var(--blue); font-weight: 900; }
+    .history-list { display: grid; gap: 8px; max-height: 250px; overflow: auto; padding-right: 4px; }
+    .history-item { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 9px 10px; border-radius: 10px; background: var(--soft); font-size: .82rem; }
+    .history-index { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 8px; color: #fff; background: #718096; font-size: .72rem; font-weight: 800; }
+    .history-status { font-weight: 900; }
+    .history-status.supported { color: var(--green); }
+    .history-status.insufficient, .history-status.abstain { color: #b85f24; }
+    .history-status.conflict { color: var(--red); }
+
+    .question-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+    .question { padding: 16px; border-top: 4px solid var(--orange); border-radius: 12px; color: #455168; background: #fff; box-shadow: 0 8px 20px rgba(23,32,51,.05); font-size: .88rem; }
+    .question b { display: block; margin-bottom: 3px; color: var(--ink); }
+    .footer-note { margin: 20px 0 0; color: #6b778c; text-align: center; font-size: .8rem; }
+
+    @media (max-width: 900px) {
+      .intro { grid-template-columns: 1fr; }
+      .workspace { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .lower-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 20px, 1180px); padding-top: 16px; }
+      .topbar { align-items: flex-start; }
+      .brand-mark { width: 38px; height: 38px; }
+      .status-pill { max-width: 150px; text-align: center; }
+      .intro { padding: 22px 20px; border-radius: 18px; }
+      .controls, .question-card, .answer-card, .evidence-card, .compare-card, .history-card { padding: 18px; }
+      .metrics { grid-template-columns: 1fr; }
+      .judge-buttons { grid-template-columns: 1fr; }
+      .compare-row { grid-template-columns: 48px minmax(0,1fr) auto; }
+      .question-strip { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">AI</span><span>인공지능 기초 실험실</span></div>
+      <span class="status-pill">수업용 단순 모델</span>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">EVIDENCE CHECK LAB</p>
+        <h1 id="page-title">자연스러운 문장은 항상 사실일까?</h1>
+      </div>
+      <p>제공 문맥과 답변 정책을 바꾸고, 생성된 답변을 기준 자료와 비교하여 자연스러움과 사실성이 서로 다른 개념임을 확인하세요.</p>
+    </section>
+
+    <div class="flow" aria-label="시뮬레이션 흐름">
+      <strong>질문 선택</strong><span class="arrow">→</span><span>문맥 제공</span><span class="arrow">→</span><span>답변 생성</span><span class="arrow">→</span><span>근거 비교</span><span class="arrow">→</span><span>학생 판정</span>
+    </div>
+
+    <div class="workspace">
+      <aside class="card controls" aria-labelledby="control-title">
+        <h2 class="card-title" id="control-title"><span><span class="step">1</span> 실험 설정</span></h2>
+
+        <div class="field">
+          <label for="scenario">질문 선택 <span class="hint">수업용 예시</span></label>
+          <select id="scenario">
+            <option value="sejong">세종대왕은 어느 나라의 왕인가?</option>
+            <option value="planet">태양계에서 가장 큰 행성은?</option>
+            <option value="photosynthesis">광합성에 필요한 기체는?</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="field-label">제공 문맥의 정보량</span>
+          <div class="segmented" id="contextButtons" role="group" aria-label="제공 문맥의 정보량">
+            <button type="button" data-level="none">없음</button>
+            <button type="button" data-level="partial" class="active">일부</button>
+            <button type="button" data-level="full">충분함</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label">답변 정책</span>
+          <div class="segmented two" id="policyButtons" role="group" aria-label="답변 정책">
+            <button type="button" data-policy="always" class="active">항상 답하기</button>
+            <button type="button" data-policy="cautious">근거 없으면 보류</button>
+          </div>
+        </div>
+
+        <div class="button-stack">
+          <button type="button" class="btn primary" id="generateButton">답변 생성</button>
+          <button type="button" class="btn" id="compareButton">문맥 비교</button>
+          <button type="button" class="btn" id="resetButton">초기화</button>
+        </div>
+
+        <p class="model-note"><strong>모델의 한계</strong><br>이 시뮬레이션은 미리 작성한 질문·근거·응답과 확률을 사용합니다. 실제 LLM의 환각 발생률, 내부 원인, 실시간 사실 여부나 서비스 정확도를 예측하지 않습니다.</p>
+      </aside>
+
+      <section class="main-panel" aria-label="시뮬레이션 결과">
+        <article class="card question-card">
+          <h2 class="card-title"><span><span class="step">2</span> 질문과 제공 문맥</span><span class="hint" id="contextLabel">일부 정보</span></h2>
+          <p class="question-label">QUESTION</p>
+          <p class="question-text" id="questionText"></p>
+          <div class="context-box" id="contextBox"></div>
+        </article>
+
+        <article class="card answer-card">
+          <h2 class="card-title"><span><span class="step">3</span> 생성된 답변</span><span class="result-badge" id="resultBadge">생성 전</span></h2>
+          <div class="answer-box placeholder" id="answerBox" aria-live="polite">‘답변 생성’을 눌러 결과를 확인하세요.</div>
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-line"><span>문장의 자연스러움</span><strong id="naturalValue">-</strong></div>
+              <div class="rail"><div class="fill" id="naturalFill"></div></div>
+            </div>
+            <div class="metric">
+              <div class="metric-line"><span>제공 근거와의 일치도</span><strong id="evidenceValue">-</strong></div>
+              <div class="rail"><div class="fill evidence" id="evidenceFill"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card evidence-card">
+          <h2 class="card-title"><span><span class="step">4</span> 근거 비교</span><span class="hint">생성 후 기준 자료 공개</span></h2>
+          <div class="reference-box" id="referenceBox"><b>검증용 기준 자료</b>답변을 생성하면 공개됩니다.</div>
+          <div class="claim-list" id="claimList"><p class="empty">답변의 주장별 근거 상태가 여기에 표시됩니다.</p></div>
+          <div class="judge-area">
+            <p class="judge-title">학생 판단: 이 답변을 어떻게 분류할까요?</p>
+            <div class="judge-buttons">
+              <button type="button" class="judge-button" data-judgment="supported">근거 있음</button>
+              <button type="button" class="judge-button" data-judgment="insufficient">근거 부족</button>
+              <button type="button" class="judge-button" data-judgment="conflict">근거와 충돌</button>
+            </div>
+            <p class="feedback" id="feedback" aria-live="polite">먼저 답변을 생성한 뒤 판단하세요.</p>
+          </div>
+        </article>
+
+        <div class="lower-grid">
+          <article class="card compare-card">
+            <h2 class="card-title"><span><span class="step">5</span> 문맥 3단계 비교</span></h2>
+            <p class="compare-copy">현재 답변 정책을 유지하고 문맥의 정보량만 바꾸어 가장 가능성이 높은 결과를 비교합니다.</p>
+            <div class="compare-results" id="compareResults"><p class="empty">‘문맥 비교’를 눌러 차이를 확인하세요.</p></div>
+          </article>
+          <article class="card history-card">
+            <h2 class="card-title"><span><span class="step">6</span> 실험 기록</span><span class="hint">반복 생성 가능</span></h2>
+            <div class="history-list" id="history"><p class="empty">아직 생성 기록이 없습니다.</p></div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <section class="question-strip" aria-label="관찰 질문">
+      <div class="question"><b>관찰 1</b>문장이 자연스러우면 사실이라고 판단해도 될까요?</div>
+      <div class="question"><b>관찰 2</b>문맥에 답이 없을 때 답변을 보류하는 정책은 어떤 효과가 있나요?</div>
+      <div class="question"><b>관찰 3</b>답변을 믿기 전에 어떤 출처와 근거를 확인해야 할까요?</div>
+    </section>
+
+    <p class="footer-note">판정은 화면에 제공된 기준 자료에 한정됩니다. 실제 사실 검증에는 신뢰할 수 있는 최신 자료 확인이 필요합니다.</p>
+  </main>
+
+  <script>
+    "use strict";
+
+    const scenarios = {
+      sejong: {
+        question: "세종대왕은 어느 나라의 왕이었는가?",
+        context: {
+          none: "",
+          partial: "세종대왕 재위 중 훈민정음이 창제되었다.",
+          full: "세종대왕은 조선의 제4대 왕이다. 재위 중 훈민정음이 창제되었다."
+        },
+        reference: "세종대왕은 조선의 제4대 왕이다.",
+        outputs: {
+          supported: { text: "세종대왕은 조선의 왕이었다.", natural: 94, evidence: 98, claims: [["세종대왕은 조선의 왕이었다.", "supported"]] },
+          insufficient: { text: "세종대왕은 조선의 왕이었으며 모든 과학 기구를 직접 만들었다.", natural: 93, evidence: 43, claims: [["세종대왕은 조선의 왕이었다.", "supported"], ["모든 과학 기구를 직접 만들었다.", "insufficient"]] },
+          conflict: { text: "세종대왕은 고려의 왕이었다.", natural: 91, evidence: 7, claims: [["세종대왕은 고려의 왕이었다.", "conflict"]] },
+          abstain: { text: "제공된 근거만으로는 어느 나라의 왕인지 확인할 수 없습니다.", natural: 86, evidence: 88, claims: [["근거 부족을 밝히고 답변을 보류했다.", "abstain"]] }
+        }
+      },
+      planet: {
+        question: "태양계에서 가장 큰 행성은 무엇인가?",
+        context: {
+          none: "",
+          partial: "목성은 주로 수소와 헬륨으로 이루어진 거대 행성이다.",
+          full: "태양계에서 가장 큰 행성은 목성이다. 목성은 주로 수소와 헬륨으로 이루어진 거대 행성이다."
+        },
+        reference: "태양계에서 가장 큰 행성은 목성이다.",
+        outputs: {
+          supported: { text: "태양계에서 가장 큰 행성은 목성이다.", natural: 96, evidence: 99, claims: [["태양계에서 가장 큰 행성은 목성이다.", "supported"]] },
+          insufficient: { text: "가장 큰 행성은 목성이며 태양계에서 가장 먼저 만들어졌다.", natural: 92, evidence: 46, claims: [["가장 큰 행성은 목성이다.", "supported"], ["태양계에서 가장 먼저 만들어졌다.", "insufficient"]] },
+          conflict: { text: "태양계에서 가장 큰 행성은 화성이다.", natural: 93, evidence: 5, claims: [["태양계에서 가장 큰 행성은 화성이다.", "conflict"]] },
+          abstain: { text: "제공된 근거만으로는 가장 큰 행성을 확인할 수 없습니다.", natural: 86, evidence: 88, claims: [["근거 부족을 밝히고 답변을 보류했다.", "abstain"]] }
+        }
+      },
+      photosynthesis: {
+        question: "식물의 광합성에 필요한 기체는 무엇인가?",
+        context: {
+          none: "",
+          partial: "식물은 광합성 과정에서 산소를 방출한다.",
+          full: "식물은 광합성 과정에서 이산화탄소와 물을 이용하고 산소를 방출한다."
+        },
+        reference: "식물은 광합성에 이산화탄소를 이용한다.",
+        outputs: {
+          supported: { text: "식물은 광합성에 이산화탄소를 이용한다.", natural: 95, evidence: 98, claims: [["광합성에 이산화탄소가 이용된다.", "supported"]] },
+          insufficient: { text: "광합성에는 이산화탄소가 필요하며 이 과정은 밤에만 일어난다.", natural: 91, evidence: 41, claims: [["광합성에 이산화탄소가 필요하다.", "supported"], ["광합성은 밤에만 일어난다.", "insufficient"]] },
+          conflict: { text: "식물은 광합성에 산소만을 사용한다.", natural: 90, evidence: 6, claims: [["광합성에 산소만을 사용한다.", "conflict"]] },
+          abstain: { text: "제공된 근거만으로는 필요한 기체를 확인할 수 없습니다.", natural: 85, evidence: 87, claims: [["근거 부족을 밝히고 답변을 보류했다.", "abstain"]] }
+        }
+      }
+    };
+
+    const distributions = {
+      always: {
+        none: { supported: .18, insufficient: .32, conflict: .50, abstain: 0 },
+        partial: { supported: .38, insufficient: .38, conflict: .24, abstain: 0 },
+        full: { supported: .80, insufficient: .14, conflict: .06, abstain: 0 }
+      },
+      cautious: {
+        none: { supported: .08, insufficient: .10, conflict: .07, abstain: .75 },
+        partial: { supported: .30, insufficient: .22, conflict: .10, abstain: .38 },
+        full: { supported: .82, insufficient: .10, conflict: .04, abstain: .04 }
+      }
+    };
+
+    const labels = {
+      none: "없음", partial: "일부 정보", full: "충분한 정보",
+      supported: "근거 있음", insufficient: "근거 부족", conflict: "근거와 충돌", abstain: "답변 보류"
+    };
+
+    const elements = {
+      scenario: document.querySelector("#scenario"), contextButtons: document.querySelector("#contextButtons"),
+      policyButtons: document.querySelector("#policyButtons"), generateButton: document.querySelector("#generateButton"),
+      compareButton: document.querySelector("#compareButton"), resetButton: document.querySelector("#resetButton"),
+      contextLabel: document.querySelector("#contextLabel"), questionText: document.querySelector("#questionText"),
+      contextBox: document.querySelector("#contextBox"), resultBadge: document.querySelector("#resultBadge"),
+      answerBox: document.querySelector("#answerBox"), naturalValue: document.querySelector("#naturalValue"),
+      evidenceValue: document.querySelector("#evidenceValue"), naturalFill: document.querySelector("#naturalFill"),
+      evidenceFill: document.querySelector("#evidenceFill"), referenceBox: document.querySelector("#referenceBox"),
+      claimList: document.querySelector("#claimList"), feedback: document.querySelector("#feedback"),
+      compareResults: document.querySelector("#compareResults"), history: document.querySelector("#history")
+    };
+
+    const state = { scenario: "sejong", context: "partial", policy: "always", result: null, history: [] };
+
+    function getDistribution(level = state.context, policy = state.policy) {
+      return distributions[policy][level];
+    }
+
+    function chooseType(distribution, randomValue = Math.random()) {
+      let cursor = randomValue;
+      for (const [type, probability] of Object.entries(distribution)) {
+        cursor -= probability;
+        if (cursor <= 0) return type;
+      }
+      return "supported";
+    }
+
+    function expectedType(distribution) {
+      return Object.entries(distribution).reduce((best, item) => item[1] > best[1] ? item : best);
+    }
+
+    function setActiveButtons(container, attribute, value) {
+      container.querySelectorAll("button").forEach(button => {
+        const active = button.dataset[attribute] === value;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+    }
+
+    function renderQuestion() {
+      const scenario = scenarios[state.scenario];
+      const context = scenario.context[state.context];
+      elements.questionText.textContent = scenario.question;
+      elements.contextLabel.textContent = labels[state.context];
+      elements.contextBox.className = `context-box${context ? "" : " empty-context"}`;
+      elements.contextBox.innerHTML = "";
+      if (context) {
+        const heading = document.createElement("span");
+        heading.className = "context-heading";
+        heading.textContent = "제공 문맥";
+        elements.contextBox.append(heading, document.createTextNode(context));
+      } else {
+        elements.contextBox.textContent = "제공된 문맥이 없습니다. 모델은 학습 과정에서 얻은 패턴에 의존해 답하게 됩니다.";
+      }
+    }
+
+    function clearResult() {
+      state.result = null;
+      elements.resultBadge.className = "result-badge";
+      elements.resultBadge.textContent = "생성 전";
+      elements.answerBox.className = "answer-box placeholder";
+      elements.answerBox.textContent = "‘답변 생성’을 눌러 결과를 확인하세요.";
+      elements.naturalValue.textContent = "-";
+      elements.evidenceValue.textContent = "-";
+      elements.naturalFill.style.width = "0";
+      elements.evidenceFill.style.width = "0";
+      elements.referenceBox.innerHTML = "<b>검증용 기준 자료</b>답변을 생성하면 공개됩니다.";
+      elements.claimList.innerHTML = '<p class="empty">답변의 주장별 근거 상태가 여기에 표시됩니다.</p>';
+      elements.feedback.className = "feedback";
+      elements.feedback.textContent = "먼저 답변을 생성한 뒤 판단하세요.";
+    }
+
+    function renderHistory() {
+      if (!state.history.length) {
+        elements.history.innerHTML = '<p class="empty">아직 생성 기록이 없습니다.</p>';
+        return;
+      }
+      elements.history.replaceChildren(...state.history.map((entry, index) => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        const number = document.createElement("span");
+        number.className = "history-index";
+        number.textContent = index + 1;
+        const detail = document.createElement("span");
+        detail.textContent = `${labels[entry.context]} · ${entry.policy === "always" ? "항상 답하기" : "근거 없으면 보류"}`;
+        const result = document.createElement("span");
+        result.className = `history-status ${entry.type}`;
+        result.textContent = labels[entry.type];
+        item.append(number, detail, result);
+        return item;
+      }));
+    }
+
+    function renderResult(type) {
+      const scenario = scenarios[state.scenario];
+      const output = scenario.outputs[type];
+      state.result = { type, output };
+      elements.resultBadge.className = `result-badge ${type}`;
+      elements.resultBadge.textContent = labels[type];
+      elements.answerBox.className = "answer-box";
+      elements.answerBox.textContent = output.text;
+      elements.naturalValue.textContent = `${output.natural}%`;
+      elements.evidenceValue.textContent = `${output.evidence}%`;
+      elements.naturalFill.style.width = `${output.natural}%`;
+      elements.evidenceFill.style.width = `${output.evidence}%`;
+      elements.referenceBox.innerHTML = "";
+      const title = document.createElement("b");
+      title.textContent = "검증용 기준 자료";
+      elements.referenceBox.append(title, document.createTextNode(scenario.reference));
+      elements.claimList.replaceChildren(...output.claims.map(([claimText, verdict]) => {
+        const claim = document.createElement("div");
+        claim.className = "claim";
+        const tag = document.createElement("span");
+        tag.className = `claim-tag ${verdict}`;
+        tag.textContent = labels[verdict];
+        const text = document.createElement("span");
+        text.textContent = claimText;
+        claim.append(tag, text);
+        return claim;
+      }));
+      elements.feedback.className = "feedback";
+      elements.feedback.textContent = "기준 자료와 비교하여 직접 판정해 보세요.";
+    }
+
+    function generate() {
+      const distribution = getDistribution();
+      const type = chooseType(distribution);
+      renderResult(type);
+      state.history.push({ context: state.context, policy: state.policy, type });
+      renderHistory();
+    }
+
+    function judge(judgment) {
+      if (!state.result) {
+        elements.feedback.className = "feedback wrong";
+        elements.feedback.textContent = "먼저 답변을 생성하세요.";
+        return;
+      }
+      const correctJudgment = state.result.type === "abstain" ? "insufficient" : state.result.type;
+      const correct = judgment === correctJudgment;
+      elements.feedback.className = `feedback ${correct ? "correct" : "wrong"}`;
+      elements.feedback.textContent = correct
+        ? `맞았습니다. 이 답변은 ‘${labels[state.result.type]}’ 상태입니다.`
+        : `다시 확인해 보세요. 기준 자료와 답변의 각 주장을 한 문장씩 비교해 보세요.`;
+    }
+
+    function compareContexts() {
+      const levels = ["none", "partial", "full"];
+      elements.compareResults.replaceChildren(...levels.map(level => {
+        const [type, probability] = expectedType(getDistribution(level));
+        const row = document.createElement("div");
+        row.className = "compare-row";
+        const levelText = document.createElement("span");
+        levelText.className = "compare-level";
+        levelText.textContent = labels[level];
+        const result = document.createElement("span");
+        result.className = "compare-result";
+        result.textContent = labels[type];
+        const probabilityText = document.createElement("span");
+        probabilityText.className = "compare-prob";
+        probabilityText.textContent = `${(probability * 100).toFixed(0)}%`;
+        row.append(levelText, result, probabilityText);
+        return row;
+      }));
+    }
+
+    function reset() {
+      state.scenario = "sejong";
+      state.context = "partial";
+      state.policy = "always";
+      state.history = [];
+      elements.scenario.value = state.scenario;
+      setActiveButtons(elements.contextButtons, "level", state.context);
+      setActiveButtons(elements.policyButtons, "policy", state.policy);
+      elements.compareResults.innerHTML = '<p class="empty">‘문맥 비교’를 눌러 차이를 확인하세요.</p>';
+      renderQuestion();
+      clearResult();
+      renderHistory();
+    }
+
+    elements.scenario.addEventListener("change", () => {
+      state.scenario = elements.scenario.value;
+      renderQuestion();
+      clearResult();
+    });
+
+    elements.contextButtons.addEventListener("click", event => {
+      const button = event.target.closest("button[data-level]");
+      if (!button) return;
+      state.context = button.dataset.level;
+      setActiveButtons(elements.contextButtons, "level", state.context);
+      renderQuestion();
+      clearResult();
+    });
+
+    elements.policyButtons.addEventListener("click", event => {
+      const button = event.target.closest("button[data-policy]");
+      if (!button) return;
+      state.policy = button.dataset.policy;
+      setActiveButtons(elements.policyButtons, "policy", state.policy);
+      clearResult();
+    });
+
+    document.querySelectorAll(".judge-button").forEach(button => button.addEventListener("click", () => judge(button.dataset.judgment)));
+    elements.generateButton.addEventListener("click", generate);
+    elements.compareButton.addEventListener("click", compareContexts);
+    elements.resetButton.addEventListener("click", reset);
+
+    reset();
+  </script>
+</body>
+</html>
